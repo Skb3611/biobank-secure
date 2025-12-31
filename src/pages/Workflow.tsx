@@ -1,11 +1,12 @@
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { FingerprintUpload } from "@/components/workflow/FingerprintUpload";
 import { VerificationProcess } from "@/components/workflow/VerificationProcess";
 import { VerificationResult } from "@/components/workflow/VerificationResult";
 import { ATMDashboard } from "@/components/workflow/ATMDashboard";
 import { config } from "@/config";
+import { Button } from "@/components/ui/button";
+import { Home } from "lucide-react";
 
 export type WorkflowStep = "upload" | "verifying" | "result" | "dashboard";
 export type USER = {
@@ -67,6 +68,16 @@ const Workflow = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <div className="container mx-auto px-4 pt-4">
+        <Button
+          variant="ghost"
+          onClick={() => window.location.href = '/'}
+          className="gap-2"
+        >
+          <Home className="h-4 w-4" />
+          Home
+        </Button>
+      </div>
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8 md:py-16">
           {currentStep === "upload" && (
