@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface FingerprintUploadProps {
-  onUpload: (imageUrl: string) => void;
+  onUpload: (imageName: string,imageUrl: string) => void;
 }
 
 export const FingerprintUpload = ({ onUpload }: FingerprintUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string|null>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -41,6 +42,7 @@ export const FingerprintUpload = ({ onUpload }: FingerprintUploadProps) => {
 
   const handleFile = (file: File) => {
     if (file.type.startsWith("image/")) {
+      setFileName(file.name.split(".")[0]);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -50,8 +52,8 @@ export const FingerprintUpload = ({ onUpload }: FingerprintUploadProps) => {
   };
 
   const handleSubmit = () => {
-    if (preview) {
-      onUpload(preview);
+    if (preview && fileName) {
+      onUpload(fileName,preview);
     }
   };
 
