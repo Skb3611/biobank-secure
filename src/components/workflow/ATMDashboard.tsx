@@ -22,6 +22,9 @@ import { Input } from "@/components/ui/input";
 import { config } from "@/config";
 import { USER } from "@/pages/Workflow";
 import { toast } from "@/hooks/use-toast";
+import { BankAccount, getUserBankAccounts, verifyPin } from "@/data/banks";
+import { BankSelector } from "./BankSelector";
+import { PinInput } from "./PinInput";
 
 interface ATMDashboardProps {
   onLogout: () => void;
@@ -37,6 +40,7 @@ type Transaction = {
   from: string;
   to: string;
 };
+
 type DashboardView =
   | "main"
   | "balance"
@@ -56,6 +60,22 @@ export const ATMDashboard = ({
   const [senderAccNo, setSetsenderAccNo] = useState("");
   const [amt, setAmt] = useState(0);
 
+  // Bank account states
+  const [userBankAccounts, setUserBankAccounts] = useState<BankAccount[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [pendingTransaction, setPendingTransaction] = useState<"send" | "withdraw" | "deposit" | null>(null);
+  const [pinError, setPinError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Load user bank accounts
+  useEffect(() => {
+    if (user?.id) {
+      const accounts = getUserBankAccounts(user.id);
+      setUserBankAccounts(accounts);
+    }
+  }, [user?.id]);
+
   const getTransactions = async () => {
     const res = await fetch(
       `${config.apiBaseUrl}/dashboard/account/statement`,
@@ -69,6 +89,7 @@ export const ATMDashboard = ({
     );
     setTransactions((await res.json()).transactions || []);
   };
+
   const updateData = async () => {
     const res = await fetch(`${config.apiBaseUrl}/dashboard/account-details`, {
       method: "GET",
@@ -124,10 +145,18 @@ export const ATMDashboard = ({
     },
   ];
 
-  const handleTransaction = async (type: "send" | "withdraw" | "deposit") => {
-    const balance = Number(user?.balance) || 0;
+  const initiateTransaction = (type: "send" | "withdraw" | "deposit") => {
+    // Validate account selection
+    if (!selectedAccount) {
+      toast({
+        title: "Select Bank Account",
+        description: "Please select a bank account to proceed.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Validate negative or zero amount
+    // Validate amount
     if (amt <= 0) {
       toast({
         title: "Invalid Amount",
@@ -137,24 +166,63 @@ export const ATMDashboard = ({
       return;
     }
 
+    // For send, validate recipient
+    if (type === "send" && !senderAccNo) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter recipient account number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check balance for send and withdraw
+    if ((type === "send" || type === "withdraw") && amt > selectedAccount.balance) {
+      toast({
+        title: "Insufficient Balance",
+        description: `You cannot ${type === "send" ? "send" : "withdraw"} ₹${amt}. Your balance in ${selectedAccount.bankName} is ₹${selectedAccount.balance.toLocaleString()}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show PIN input
+    setPendingTransaction(type);
+    setShowPinInput(true);
+    setPinError("");
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    if (!selectedAccount || !pendingTransaction) return;
+
+    setIsProcessing(true);
+    setPinError("");
+
+    // Verify PIN
+    const isValid = verifyPin(selectedAccount.id, pin);
+
+    if (!isValid) {
+      setPinError("Invalid PIN. Please try again.");
+      setIsProcessing(false);
+      return;
+    }
+
+    // Process transaction
+    await handleTransaction(pendingTransaction);
+    setShowPinInput(false);
+    setPendingTransaction(null);
+    setIsProcessing(false);
+  };
+
+  const handlePinCancel = () => {
+    setShowPinInput(false);
+    setPendingTransaction(null);
+    setPinError("");
+  };
+
+  const handleTransaction = async (type: "send" | "withdraw" | "deposit") => {
     switch (type) {
       case "send":
-        if (!senderAccNo) {
-          toast({
-            title: "Missing Information",
-            description: "Please enter recipient account number.",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (amt > balance) {
-          toast({
-            title: "Insufficient Balance",
-            description: `You cannot send ₹${amt}. Your balance is ₹${balance}.`,
-            variant: "destructive",
-          });
-          return;
-        }
         const res = await fetch(
           `${config.apiBaseUrl}/dashboard/account/transfer`,
           {
@@ -172,26 +240,28 @@ export const ATMDashboard = ({
         if (res.status !== 200) {
           toast({
             title: "Transfer Failed",
-            description: "Unable to complete the transfer. check the account number.",
+            description: "Unable to complete the transfer. Check the account number.",
             variant: "destructive",
           });
           return;
         }
+        // Update local balance
+        setUserBankAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === selectedAccount?.id
+              ? { ...acc, balance: acc.balance - amt }
+              : acc
+          )
+        );
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);
           setCurrentView("main");
+          resetTransactionState();
         }, 3000);
         break;
+
       case "withdraw":
-        if (amt > balance) {
-          toast({
-            title: "Insufficient Balance",
-            description: `You cannot withdraw ₹${amt}. Your balance is ₹${balance}.`,
-            variant: "destructive",
-          });
-          return;
-        }
         const resWithdraw = await fetch(
           `${config.apiBaseUrl}/dashboard/account/withdraw`,
           {
@@ -213,16 +283,23 @@ export const ATMDashboard = ({
           });
           return;
         }
+        // Update local balance
+        setUserBankAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === selectedAccount?.id
+              ? { ...acc, balance: acc.balance - amt }
+              : acc
+          )
+        );
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);
           setCurrentView("main");
+          resetTransactionState();
         }, 3000);
         break;
+
       case "deposit":
-        if (!amt) {
-          return;
-        }
         const resDeposit = await fetch(
           `${config.apiBaseUrl}/dashboard/account/deposit`,
           {
@@ -237,15 +314,35 @@ export const ATMDashboard = ({
           }
         );
         if (resDeposit.status !== 200) {
+          toast({
+            title: "Deposit Failed",
+            description: "Unable to complete the deposit. Please try again.",
+            variant: "destructive",
+          });
           return;
         }
+        // Update local balance
+        setUserBankAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === selectedAccount?.id
+              ? { ...acc, balance: acc.balance + amt }
+              : acc
+          )
+        );
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);
           setCurrentView("main");
+          resetTransactionState();
         }, 3000);
         break;
     }
+  };
+
+  const resetTransactionState = () => {
+    setSelectedAccount(null);
+    setAmt(0);
+    setSetsenderAccNo("");
   };
 
   const renderContent = () => {
@@ -280,21 +377,36 @@ export const ATMDashboard = ({
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </Button>
-              <CardTitle>Account Balance</CardTitle>
-              <CardDescription>Your current available balance</CardDescription>
+              <CardTitle>Account Balances</CardTitle>
+              <CardDescription>Your linked bank accounts</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-6 md:py-8">
-                <p className="text-muted-foreground text-sm mb-2">
-                  Available Balance
-                </p>
-                <p className="text-4xl md:text-5xl font-bold text-primary">
-                  ₹{user?.balance?.toLocaleString() || "0"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Last updated: Just now
-                </p>
-              </div>
+            <CardContent className="space-y-4">
+              {userBankAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
+                >
+                  <img
+                    src={account.bankLogo}
+                    alt={account.bankName}
+                    className="w-12 h-12 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{account.bankName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {account.accountNumber}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-primary">
+                      ₹{account.balance.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         );
@@ -306,7 +418,10 @@ export const ATMDashboard = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentView("main")}
+                onClick={() => {
+                  setCurrentView("main");
+                  resetTransactionState();
+                }}
                 className="w-fit gap-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
@@ -317,34 +432,56 @@ export const ATMDashboard = ({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
-                  Recipient Account
-                </label>
-                <Input
-                  placeholder="Enter account number"
-                  value={senderAccNo}
-                  onChange={(e) => setSetsenderAccNo(e.target.value)}
+              {showPinInput ? (
+                <PinInput
+                  onSubmit={handlePinSubmit}
+                  onCancel={handlePinCancel}
+                  isLoading={isProcessing}
+                  error={pinError}
                 />
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
-                  Amount (₹)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={amt}
-                  onChange={(e) => setAmt(Number(e.target.value))}
-                />
-              </div>
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={() => handleTransaction("send")}
-              >
-                Send Money
-              </Button>
+              ) : (
+                <>
+                  <BankSelector
+                    accounts={userBankAccounts}
+                    selectedAccount={selectedAccount}
+                    onSelect={setSelectedAccount}
+                    label="From Account"
+                  />
+                  {selectedAccount && (
+                    <p className="text-sm text-muted-foreground">
+                      Available: ₹{selectedAccount.balance.toLocaleString()}
+                    </p>
+                  )}
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Recipient Account
+                    </label>
+                    <Input
+                      placeholder="Enter account number"
+                      value={senderAccNo}
+                      onChange={(e) => setSetsenderAccNo(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Amount (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter amount"
+                      value={amt || ""}
+                      onChange={(e) => setAmt(Number(e.target.value))}
+                    />
+                  </div>
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    onClick={() => initiateTransaction("send")}
+                  >
+                    Send Money
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         );
@@ -356,52 +493,77 @@ export const ATMDashboard = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentView("main")}
+                onClick={() => {
+                  setCurrentView("main");
+                  resetTransactionState();
+                }}
                 className="w-fit gap-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </Button>
               <CardTitle>Withdraw Cash</CardTitle>
               <CardDescription>
-                Select or enter withdrawal amount
+                Select account and enter withdrawal amount
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[500, 1000, 2000, 5000].map((amount) => (
+              {showPinInput ? (
+                <PinInput
+                  onSubmit={handlePinSubmit}
+                  onCancel={handlePinCancel}
+                  isLoading={isProcessing}
+                  error={pinError}
+                />
+              ) : (
+                <>
+                  <BankSelector
+                    accounts={userBankAccounts}
+                    selectedAccount={selectedAccount}
+                    onSelect={setSelectedAccount}
+                    label="From Account"
+                  />
+                  {selectedAccount && (
+                    <p className="text-sm text-muted-foreground">
+                      Available: ₹{selectedAccount.balance.toLocaleString()}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {[500, 1000, 2000, 5000].map((amount) => (
+                      <Button
+                        key={amount}
+                        variant="outline"
+                        className={`h-12 md:h-14 text-base md:text-lg ${amt === amount ? "border-primary bg-primary/10" : ""}`}
+                        onClick={() => setAmt(amount)}
+                      >
+                        ₹{amount}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">
+                        or enter amount
+                      </span>
+                    </div>
+                  </div>
+                  <Input
+                    type="number"
+                    placeholder="Enter custom amount"
+                    value={amt || ""}
+                    onChange={(e) => setAmt(Number(e.target.value))}
+                  />
                   <Button
-                    key={amount}
-                    variant="outline"
-                    className="h-12 md:h-14 text-base md:text-lg"
-                    onClick={() => setAmt(amount)}
+                    variant="hero"
+                    className="w-full"
+                    onClick={() => initiateTransaction("withdraw")}
                   >
-                    ₹{amount}
+                    Withdraw
                   </Button>
-                ))}
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    or enter amount
-                  </span>
-                </div>
-              </div>
-              <Input
-                type="number"
-                placeholder="Enter custom amount"
-                value={amt}
-                onChange={(e) => setAmt(Number(e.target.value))}
-              />
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={() => handleTransaction("withdraw")}
-              >
-                Withdraw
-              </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         );
@@ -413,39 +575,64 @@ export const ATMDashboard = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentView("main")}
+                onClick={() => {
+                  setCurrentView("main");
+                  resetTransactionState();
+                }}
                 className="w-fit gap-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </Button>
               <CardTitle>Deposit Cash</CardTitle>
-              <CardDescription>Enter the amount to deposit</CardDescription>
+              <CardDescription>Select account and enter deposit amount</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
-                  Amount (₹)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="Enter deposit amount"
-                  value={amt}
-                  onChange={(e) => setAmt(Number(e.target.value))}
+              {showPinInput ? (
+                <PinInput
+                  onSubmit={handlePinSubmit}
+                  onCancel={handlePinCancel}
+                  isLoading={isProcessing}
+                  error={pinError}
                 />
-              </div>
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                <p className="text-sm text-muted-foreground">
-                  Please insert cash into the ATM slot after confirming the
-                  deposit.
-                </p>
-              </div>
-              <Button
-                variant="hero"
-                className="w-full"
-                onClick={() => handleTransaction("deposit")}
-              >
-                Confirm Deposit
-              </Button>
+              ) : (
+                <>
+                  <BankSelector
+                    accounts={userBankAccounts}
+                    selectedAccount={selectedAccount}
+                    onSelect={setSelectedAccount}
+                    label="To Account"
+                  />
+                  {selectedAccount && (
+                    <p className="text-sm text-muted-foreground">
+                      Current Balance: ₹{selectedAccount.balance.toLocaleString()}
+                    </p>
+                  )}
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Amount (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter deposit amount"
+                      value={amt || ""}
+                      onChange={(e) => setAmt(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <p className="text-sm text-muted-foreground">
+                      Please insert cash into the ATM slot after confirming the
+                      deposit.
+                    </p>
+                  </div>
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    onClick={() => initiateTransaction("deposit")}
+                  >
+                    Confirm Deposit
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         );
@@ -469,7 +656,6 @@ export const ATMDashboard = ({
               {transactions.length > 0 ? (
                 <div className="space-y-3">
                   {transactions.map((txn) => {
-                    console.log(txn);
                     return (
                       <div
                         key={txn.id}
@@ -530,26 +716,43 @@ export const ATMDashboard = ({
                   </div>
                   <div className="text-center sm:text-left flex-1">
                     <h2 className="text-lg md:text-xl font-bold">
-                      Welcome, {user.name}
+                      Welcome, {user?.name}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Account: {user.accountNumber}
+                      Account: {user?.accountNumber}
                     </p>
                   </div>
                   <div className="text-center sm:text-right">
                     <p className="text-xs text-muted-foreground">
-                      Available Balance
+                      Linked Accounts
                     </p>
                     <p className="text-xl md:text-2xl font-bold text-primary">
-                      ₹
-                      {Array(user.balance.toLocaleString().length)
-                        .fill("X")
-                        .join("")}
+                      {userBankAccounts.length}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Linked Bank Accounts Preview */}
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {userBankAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border/50 flex-shrink-0"
+                >
+                  <img
+                    src={account.bankLogo}
+                    alt={account.bankName}
+                    className="w-6 h-6 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
+                  />
+                  <span className="text-sm font-medium">{account.accountNumber}</span>
+                </div>
+              ))}
+            </div>
 
             {/* Menu Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
