@@ -1,4 +1,5 @@
 import { ArrowRight, Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import FingerprintScanner from "./FingerprintScanner";
 
@@ -40,13 +41,17 @@ const HeroSection = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start opacity-0 animate-fade-up animation-delay-400">
-              <Button variant="hero" size="xl">
-                <Play className="w-5 h-5" />
-                Start ATM Simulation
+              <Button variant="hero" size="xl" asChild>
+                <Link to="/workflow">
+                  <Play className="w-5 h-5" />
+                  Start ATM Simulation
+                </Link>
               </Button>
-              <Button variant="heroOutline" size="xl">
-                Learn How It Works
-                <ArrowRight className="w-5 h-5" />
+              <Button variant="heroOutline" size="xl" asChild>
+                <a href="#workflow">
+                  Learn How It Works
+                  <ArrowRight className="w-5 h-5" />
+                </a>
               </Button>
             </div>
           </div>
