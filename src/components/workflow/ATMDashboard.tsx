@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { config } from "@/config";
 import { USER } from "@/pages/Workflow";
+import { toast } from "@/hooks/use-toast";
 
 interface ATMDashboardProps {
   onLogout: () => void;
@@ -124,9 +125,34 @@ export const ATMDashboard = ({
   ];
 
   const handleTransaction = async (type: "send" | "withdraw" | "deposit") => {
+    const balance = Number(user?.balance) || 0;
+
+    // Validate negative or zero amount
+    if (amt <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid positive amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     switch (type) {
       case "send":
-        if (!senderAccNo || !amt) {
+        if (!senderAccNo) {
+          toast({
+            title: "Missing Information",
+            description: "Please enter recipient account number.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (amt > balance) {
+          toast({
+            title: "Insufficient Balance",
+            description: `You cannot send ₹${amt}. Your balance is ₹${balance}.`,
+            variant: "destructive",
+          });
           return;
         }
         const res = await fetch(
@@ -144,6 +170,11 @@ export const ATMDashboard = ({
           }
         );
         if (res.status !== 200) {
+          toast({
+            title: "Transfer Failed",
+            description: "Unable to complete the transfer. Please try again.",
+            variant: "destructive",
+          });
           return;
         }
         setShowSuccess(true);
@@ -153,7 +184,12 @@ export const ATMDashboard = ({
         }, 3000);
         break;
       case "withdraw":
-        if (!amt) {
+        if (amt > balance) {
+          toast({
+            title: "Insufficient Balance",
+            description: `You cannot withdraw ₹${amt}. Your balance is ₹${balance}.`,
+            variant: "destructive",
+          });
           return;
         }
         const resWithdraw = await fetch(
@@ -170,8 +206,12 @@ export const ATMDashboard = ({
           }
         );
         if (resWithdraw.status !== 200) {
+          toast({
+            title: "Withdrawal Failed",
+            description: "Unable to complete the withdrawal. Please try again.",
+            variant: "destructive",
+          });
           return;
-          
         }
         setShowSuccess(true);
         setTimeout(() => {
