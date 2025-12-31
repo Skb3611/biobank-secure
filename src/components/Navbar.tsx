@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Fingerprint, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const navLinks = [
   { href: "#introduction", label: "About" },
@@ -51,9 +52,11 @@ const Navbar = () => {
           
           {/* CTA Button */}
           <div className="hidden md:block">
+            <Link to="/workflow">
             <Button variant="hero" size="default">
               Start Simulation
             </Button>
+            </Link>
           </div>
           
           {/* Mobile Menu Toggle */}
