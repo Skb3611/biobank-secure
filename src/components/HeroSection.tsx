@@ -17,7 +17,7 @@ const HeroSection = () => {
         backgroundSize: '50px 50px'
       }} />
 
-      <div className="container relative z-10 px-4 md:px-6">
+      <div className="container relative z-10 px-4 md:px-6 py-20">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Text Content */}
           <div className="text-center lg:text-left space-y-6">
