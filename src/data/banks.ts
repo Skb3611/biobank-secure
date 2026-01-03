@@ -32,18 +32,6 @@ export const INDIAN_BANKS = [
     logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Axis_Bank_logo.svg/200px-Axis_Bank_logo.svg.png",
     color: "bg-purple-700",
   },
-  {
-    id: "pnb",
-    name: "Punjab National Bank",
-    logo: "https://upload.wikimedia.org/wikipedia/en/thumb/5/54/Punjab_National_Bank_logo.svg/200px-Punjab_National_Bank_logo.svg.png",
-    color: "bg-red-700",
-  },
-  {
-    id: "bob",
-    name: "Bank of Baroda",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Bank_of_Baroda_logo.svg/200px-Bank_of_Baroda_logo.svg.png",
-    color: "bg-orange-500",
-  },
 ];
 
 // Simulated user bank accounts - each user can have multiple accounts
