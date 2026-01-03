@@ -7,14 +7,15 @@ import { ATMDashboard } from "@/components/workflow/ATMDashboard";
 import { config } from "@/config";
 import { Button } from "@/components/ui/button";
 import { Home } from "lucide-react";
+import { BankAccount } from "@/data/banks";
 
 export type WorkflowStep = "upload" | "verifying" | "result" | "dashboard";
 export type USER = {
   id: string;
   name: string;
-  accountNumber: string;
-  balance: string;
   fingerprintId: string;
+  accounts: BankAccount[];
+  transactions: any;
 };
 
 const Workflow = () => {

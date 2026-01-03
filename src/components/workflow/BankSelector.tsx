@@ -1,4 +1,4 @@
-import { BankAccount } from "@/data/banks";
+import { BankAccount, bankImages } from "@/data/banks";
 import {
   Select,
   SelectContent,
@@ -35,7 +35,7 @@ export const BankSelector = ({
             {selectedAccount && (
               <div className="flex items-center gap-3">
                 <img
-                  src={selectedAccount.bankLogo}
+                  src={bankImages[selectedAccount.bankName.toLowerCase()]}
                   alt={selectedAccount.bankName}
                   className="w-6 h-6 object-contain"
                   onError={(e) => {
@@ -61,7 +61,7 @@ export const BankSelector = ({
             >
               <div className="flex items-center gap-3 py-1">
                 <img
-                  src={account.bankLogo}
+                  src={bankImages[account.bankName.toLowerCase()]}
                   alt={account.bankName}
                   className="w-8 h-8 object-contain"
                   onError={(e) => {
@@ -70,7 +70,7 @@ export const BankSelector = ({
                 />
                 <div>
                   <p className="font-medium">{account.bankName}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground text-black">
                     {account.accountNumber} • ₹{account.balance.toLocaleString()}
                   </p>
                 </div>

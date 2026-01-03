@@ -1,9 +1,7 @@
 export interface BankAccount {
   id: string;
   bankName: string;
-  bankLogo: string;
   accountNumber: string;
-  ifscCode: string;
   balance: number;
 }
 
@@ -34,38 +32,9 @@ export const INDIAN_BANKS = [
   },
 ];
 
-// Simulated user bank accounts - each user can have multiple accounts
-export const getUserBankAccounts = (userId: string): BankAccount[] => {
-  return [
-    {
-      id: "acc1",
-      bankName: "State Bank of India",
-      bankLogo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/SBI-logo.svg/200px-SBI-logo.svg.png",
-      accountNumber: "XXXX1234",
-      ifscCode: "SBIN0001234",
-      balance: 50000,
-    },
-    {
-      id: "acc2",
-      bankName: "HDFC Bank",
-      bankLogo: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/HDFC_Bank_Logo.svg/200px-HDFC_Bank_Logo.svg.png",
-      accountNumber: "XXXX5678",
-      ifscCode: "HDFC0001234",
-      balance: 125000,
-    },
-    {
-      id: "acc3",
-      bankName: "ICICI Bank",
-      bankLogo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/ICICI_Bank_Logo.svg/200px-ICICI_Bank_Logo.svg.png",
-      accountNumber: "XXXX9012",
-      ifscCode: "ICIC0001234",
-      balance: 75000,
-    },
-  ];
-};
-
-// Simulated PIN verification (in real app, this would be server-side)
-export const verifyPin = (accountId: string, pin: string): boolean => {
-  // For demo purposes, valid PIN is "1234" for all accounts
-  return pin === "1234";
-};
+export const bankImages = {
+  axis: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Axis_Bank_logo.svg/200px-Axis_Bank_logo.svg.png",
+  hdfc: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/HDFC_Bank_Logo.svg/200px-HDFC_Bank_Logo.svg.png",
+  icici: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/ICICI_Bank_Logo.svg/200px-ICICI_Bank_Logo.svg.png",
+  sbi: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/SBI-logo.svg/200px-SBI-logo.svg.png",
+}

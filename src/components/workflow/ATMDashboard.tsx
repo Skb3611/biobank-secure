@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { config } from "@/config";
 import { USER } from "@/pages/Workflow";
 import { toast } from "@/hooks/use-toast";
-import { BankAccount, getUserBankAccounts, verifyPin } from "@/data/banks";
+import { BankAccount, INDIAN_BANKS,bankImages } from "@/data/banks";
 import { BankSelector } from "./BankSelector";
 import { PinInput } from "./PinInput";
 
@@ -70,15 +70,16 @@ export const ATMDashboard = ({
 
   // Load user bank accounts
   useEffect(() => {
-    if (user?.id) {
-      const accounts = getUserBankAccounts(user.id);
+    updateData()
+    if (user) {
+      const accounts = user.accounts || [];
       setUserBankAccounts(accounts);
     }
-  }, [user?.id]);
+  }, []);
 
-  const getTransactions = async () => {
+  const getTransactions = async (accountNo: string) => {
     const res = await fetch(
-      `${config.apiBaseUrl}/dashboard/account/statement`,
+      `${config.apiBaseUrl}/dashboard/account/statement/${accountNo}`,
       {
         method: "GET",
         headers: {
@@ -107,7 +108,9 @@ export const ATMDashboard = ({
         updateData();
         break;
       case "statements":
-        getTransactions();
+        if (selectedAccount) {
+          getTransactions(selectedAccount.accountNumber);
+        }
         break;
     }
   }, [currentView]);
@@ -195,20 +198,8 @@ export const ATMDashboard = ({
   const handlePinSubmit = async (pin: string) => {
     if (!selectedAccount || !pendingTransaction) return;
 
-    setIsProcessing(true);
-    setPinError("");
-
-    // Verify PIN
-    const isValid = verifyPin(selectedAccount.id, pin);
-
-    if (!isValid) {
-      setPinError("Invalid PIN. Please try again.");
-      setIsProcessing(false);
-      return;
-    }
-
     // Process transaction
-    await handleTransaction(pendingTransaction);
+    await handleTransaction(pendingTransaction,pin);
     setShowPinInput(false);
     setPendingTransaction(null);
     setIsProcessing(false);
@@ -220,7 +211,7 @@ export const ATMDashboard = ({
     setPinError("");
   };
 
-  const handleTransaction = async (type: "send" | "withdraw" | "deposit") => {
+  const handleTransaction = async (type: "send" | "withdraw" | "deposit",pin: string) => {
     switch (type) {
       case "send":
         const res = await fetch(
@@ -232,15 +223,18 @@ export const ATMDashboard = ({
               fingerprintid: user?.fingerprintId || "",
             },
             body: JSON.stringify({
+              senderAccountNO: selectedAccount.accountNumber,
               receiverAccountNO: senderAccNo,
               amt: amt,
+              pin: Number(pin),
             }),
           }
         );
         if (res.status !== 200) {
+          const msg = (await res.json()).error;
           toast({
             title: "Transfer Failed",
-            description: "Unable to complete the transfer. Check the account number.",
+            description: `Unable to complete the transfer. ${msg}`,
             variant: "destructive",
           });
           return;
@@ -272,6 +266,8 @@ export const ATMDashboard = ({
             },
             body: JSON.stringify({
               amt: amt,
+              bankName: selectedAccount.bankName,
+              pin: Number(pin),
             }),
           }
         );
@@ -310,6 +306,7 @@ export const ATMDashboard = ({
             },
             body: JSON.stringify({
               amt: amt,
+              bankName: selectedAccount.bankName,
             }),
           }
         );
@@ -386,8 +383,9 @@ export const ATMDashboard = ({
                   key={account.id}
                   className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
                 >
+                 
                   <img
-                    src={account.bankLogo}
+                    src={bankImages[account.bankName.toLowerCase()] || "/placeholder.svg"}
                     alt={account.bankName}
                     className="w-12 h-12 object-contain"
                     onError={(e) => {
@@ -651,6 +649,12 @@ export const ATMDashboard = ({
               </Button>
               <CardTitle>Account Statements</CardTitle>
               <CardDescription>Recent transaction history</CardDescription>
+              <BankSelector
+                accounts={userBankAccounts}
+                selectedAccount={selectedAccount}
+                onSelect={setSelectedAccount}
+                label="Account"
+              />
             </CardHeader>
             <CardContent>
               {transactions.length > 0 ? (
@@ -718,9 +722,9 @@ export const ATMDashboard = ({
                     <h2 className="text-lg md:text-xl font-bold">
                       Welcome, {user?.name}
                     </h2>
-                    <p className="text-sm text-muted-foreground">
+                    {/* <p className="text-sm text-muted-foreground">
                       Account: {user?.accountNumber}
-                    </p>
+                    </p> */}
                   </div>
                   <div className="text-center sm:text-right">
                     <p className="text-xs text-muted-foreground">
@@ -742,7 +746,7 @@ export const ATMDashboard = ({
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border/50 flex-shrink-0"
                 >
                   <img
-                    src={account.bankLogo}
+                    src={bankImages[account.bankName.toLowerCase()]}
                     alt={account.bankName}
                     className="w-6 h-6 object-contain"
                     onError={(e) => {
