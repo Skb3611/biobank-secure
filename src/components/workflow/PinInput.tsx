@@ -13,10 +13,13 @@ interface PinInputProps {
 export const PinInput = ({ onSubmit, onCancel, isLoading, error }: PinInputProps) => {
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
+  const [buttonoff, setButtonOff] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
+    
     e.preventDefault();
     if (pin.length === 4) {
+      setButtonOff(true);
       onSubmit(pin);
     }
   };
@@ -70,9 +73,9 @@ export const PinInput = ({ onSubmit, onCancel, isLoading, error }: PinInputProps
             type="submit"
             variant="hero"
             className="flex-1"
-            disabled={pin.length !== 4 || isLoading}
+            disabled={pin.length !== 4 || buttonoff}
           >
-            {isLoading ? "Verifying..." : "Confirm"}
+            {buttonoff ? "Verifying..." : "Confirm"}
           </Button>
         </div>
       </form>
