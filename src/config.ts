@@ -1,3 +1,3 @@
 export const config = {
-  apiBaseUrl: "https://biometric-atm-backend.onrender.com",
+  apiBaseUrl: "http://localhost:8000",
 };

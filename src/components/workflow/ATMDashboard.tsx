@@ -106,20 +106,20 @@ export const ATMDashboard = ({
       },
     });
     setUser((await res.json()).user || null);
-    setTransactions((await res.json()).transactions || []);
+    setTransactions((await res.json()).user?.transactions || []);
   };
 
   useEffect(() => {
-    console.log(selectedAccount, currentView);
-    if (selectedAccount && currentView === "statements") {
-      getTransactions(selectedAccount.accountNumber);
-    }
     switch (currentView) {
       case "main":
         updateData();
         break;
+        case "statements":
+          updateData();
+          setTransactions(user?.transactions || []);
+          break;
     }
-  }, [currentView, selectedAccount]);
+  }, [currentView]);
 
 
   const menuItems = [
