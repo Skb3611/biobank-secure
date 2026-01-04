@@ -39,7 +39,6 @@ const Workflow = () => {
 
     const data = await res.json();
     console.log(data, res.status);
-    setTimeout(() => {
       if (res.status == 200) {
         setVerificationSuccess(true);
         setUser(data.user);
@@ -49,7 +48,6 @@ const Workflow = () => {
         setVerificationSuccess(false);
         setCurrentStep("result");
       }
-    }, 3000);
   };
 
   const handleContinue = () => {

@@ -57,7 +57,7 @@ export const BankSelector = ({
             <SelectItem
               key={account.id}
               value={account.id}
-              className="cursor-pointer hover:bg-accent focus:bg-accent"
+              className="cursor-pointer hover:bg-accent focus:bg-accent group group-hover:text-black"
             >
               <div className="flex items-center gap-3 py-1">
                 <img
@@ -69,8 +69,8 @@ export const BankSelector = ({
                   }}
                 />
                 <div>
-                  <p className="font-medium">{account.bankName}</p>
-                  <p className="text-xs text-muted-foreground text-black">
+                  <p className="font-medium group-hover:text-black">{account.bankName}</p>
+                  <p className="text-xs text-muted-foreground group-hover:text-black">
                     {account.accountNumber} • ₹{account.balance.toLocaleString()}
                   </p>
                 </div>
