@@ -106,6 +106,7 @@ export const ATMDashboard = ({
       },
     });
     setUser((await res.json()).user || null);
+    setTransactions((await res.json()).transactions || []);
   };
 
   useEffect(() => {
