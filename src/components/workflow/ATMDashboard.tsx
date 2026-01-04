@@ -668,15 +668,15 @@ export const ATMDashboard = ({
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${txn.type !== "deposit"
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${txn.type === "deposit"
                               ? "bg-accent/20 text-accent"
                               : "bg-orange-400/20 text-orange-400"
                               }`}
                           >
-                            {txn.type !== "deposit" ? (
-                              <ArrowUpFromLine className="w-4 h-4" />
-                            ) : (
+                            {txn.type === "deposit" ? (
                               <ArrowDownToLine className="w-4 h-4" />
+                            ) : (
+                              <ArrowUpFromLine className="w-4 h-4" />
                             )}
                           </div>
                           <div>
@@ -693,12 +693,12 @@ export const ATMDashboard = ({
                           </div>
                         </div>
                         <p
-                          className={`font-semibold text-sm md:text-base ${txn.type !== "deposit"
+                          className={`font-semibold text-sm md:text-base ${txn.type === "deposit"
                             ? "text-accent"
                             : "text-orange-400"
                             }`}
                         >
-                          {txn.type !== "deposit" ? "+" : ""}₹
+                          {txn.type === "deposit" ? "+" : ""}₹
                           {Math.abs(txn.amount).toLocaleString()}
                         </p>
                       </div>
