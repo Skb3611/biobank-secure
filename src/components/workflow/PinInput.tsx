@@ -55,9 +55,6 @@ export const PinInput = ({ onSubmit, onCancel, isLoading, error }: PinInputProps
           <p className="text-sm text-destructive text-center">{error}</p>
         )}
 
-        <p className="text-xs text-muted-foreground text-center">
-          Demo PIN: 1234
-        </p>
 
         <div className="flex gap-3">
           <Button

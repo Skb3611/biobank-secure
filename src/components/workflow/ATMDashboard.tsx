@@ -9,6 +9,8 @@ import {
   User,
   ArrowLeft,
   CheckCircle,
+  ArrowRight,
+  MoveRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,9 +24,11 @@ import { Input } from "@/components/ui/input";
 import { config } from "@/config";
 import { USER } from "@/pages/Workflow";
 import { toast } from "@/hooks/use-toast";
-import { BankAccount, INDIAN_BANKS,bankImages } from "@/data/banks";
+import { BankAccount, INDIAN_BANKS, bankImages } from "@/data/banks";
 import { BankSelector } from "./BankSelector";
 import { PinInput } from "./PinInput";
+import { IconRight } from "react-day-picker";
+import { Badge } from "../ui/badge";
 
 interface ATMDashboardProps {
   onLogout: () => void;
@@ -37,8 +41,8 @@ type Transaction = {
   type: "deposit" | "withdraw" | "transfer";
   amount: number;
   createdAt: string;
-  from: string;
-  to: string;
+  fromAccountNumber: string;
+  toAccountNumber: string;
 };
 
 type DashboardView =
@@ -74,6 +78,8 @@ export const ATMDashboard = ({
     if (user) {
       const accounts = user.accounts || [];
       setUserBankAccounts(accounts);
+      console.log(user.transactions);
+      setTransactions(user.transactions || []);
     }
   }, []);
 
@@ -103,17 +109,17 @@ export const ATMDashboard = ({
   };
 
   useEffect(() => {
+    console.log(selectedAccount, currentView);
+    if (selectedAccount && currentView === "statements") {
+      getTransactions(selectedAccount.accountNumber);
+    }
     switch (currentView) {
       case "main":
         updateData();
         break;
-      case "statements":
-        if (selectedAccount) {
-          getTransactions(selectedAccount.accountNumber);
-        }
-        break;
     }
-  }, [currentView]);
+  }, [currentView, selectedAccount]);
+
 
   const menuItems = [
     {
@@ -199,7 +205,7 @@ export const ATMDashboard = ({
     if (!selectedAccount || !pendingTransaction) return;
 
     // Process transaction
-    await handleTransaction(pendingTransaction,pin);
+    await handleTransaction(pendingTransaction, pin);
     setShowPinInput(false);
     setPendingTransaction(null);
     setIsProcessing(false);
@@ -211,7 +217,7 @@ export const ATMDashboard = ({
     setPinError("");
   };
 
-  const handleTransaction = async (type: "send" | "withdraw" | "deposit",pin: string) => {
+  const handleTransaction = async (type: "send" | "withdraw" | "deposit", pin: string) => {
     switch (type) {
       case "send":
         const res = await fetch(
@@ -383,7 +389,7 @@ export const ATMDashboard = ({
                   key={account.id}
                   className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
                 >
-                 
+
                   <img
                     src={bankImages[account.bankName.toLowerCase()] || "/placeholder.svg"}
                     alt={account.bankName}
@@ -649,12 +655,6 @@ export const ATMDashboard = ({
               </Button>
               <CardTitle>Account Statements</CardTitle>
               <CardDescription>Recent transaction history</CardDescription>
-              <BankSelector
-                accounts={userBankAccounts}
-                selectedAccount={selectedAccount}
-                onSelect={setSelectedAccount}
-                label="Account"
-              />
             </CardHeader>
             <CardContent>
               {transactions.length > 0 ? (
@@ -667,11 +667,10 @@ export const ATMDashboard = ({
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${
-                              txn.type === "deposit"
-                                ? "bg-accent/20 text-accent"
-                                : "bg-orange-400/20 text-orange-400"
-                            }`}
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${txn.type === "deposit"
+                              ? "bg-accent/20 text-accent"
+                              : "bg-orange-400/20 text-orange-400"
+                              }`}
                           >
                             {txn.type === "deposit" ? (
                               <ArrowUpFromLine className="w-4 h-4" />
@@ -680,17 +679,23 @@ export const ATMDashboard = ({
                             )}
                           </div>
                           <div>
+                          <p className="flex text-sm gap-2 items-center">
+                            {txn.fromAccountNumber || "self"} <MoveRight /> {txn.toAccountNumber}
+                            <Badge variant="outline">
+                            {txn.type.toUpperCase()}
+                            </Badge>
+                          </p>
+                          
                             <p className="text-xs text-muted-foreground">
                               {new Date(txn.createdAt).toLocaleString()}
                             </p>
                           </div>
                         </div>
                         <p
-                          className={`font-semibold text-sm md:text-base ${
-                            txn.type === "deposit"
-                              ? "text-accent"
-                              : "text-orange-400"
-                          }`}
+                          className={`font-semibold text-sm md:text-base ${txn.type === "deposit"
+                            ? "text-accent"
+                            : "text-orange-400"
+                            }`}
                         >
                           {txn.type === "deposit" ? "+" : ""}₹
                           {Math.abs(txn.amount).toLocaleString()}
